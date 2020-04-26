@@ -3,13 +3,12 @@ package ru.mail.polis.suhova;
 import org.jetbrains.annotations.NotNull;
 
 import java.nio.ByteBuffer;
-import java.util.Comparator;
 
 public class TableEntry implements Comparable<TableEntry> {
     private final ByteBuffer key;
     private final Value value;
 
-    public TableEntry(ByteBuffer key, Value value) {
+    public TableEntry(final ByteBuffer key, final Value value) {
         this.key = key;
         this.value = value;
     }
@@ -30,7 +29,7 @@ public class TableEntry implements Comparable<TableEntry> {
 
     @Override
     public int compareTo(@NotNull TableEntry entry) {
-        int cmp = key.compareTo(entry.getKey());
+        final int cmp = key.compareTo(entry.getKey());
         return cmp == 0 ? -Long.compare(value.getVersion(), entry.getValue().getVersion()) : cmp;
     }
 }

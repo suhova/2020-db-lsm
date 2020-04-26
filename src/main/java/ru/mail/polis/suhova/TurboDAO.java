@@ -9,34 +9,40 @@ import ru.mail.polis.Record;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.Iterator;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class TurboDAO implements DAO {
     private final long maxSize;
     private final File dir;
-    private final List<Table> sstables;
+    private final ArrayList<Table> sstables;
     private MemTable memTable;
     private int generation;
 
-    public TurboDAO(File dir, long maxSize) {
+    /**
+     * Implementation {@link DAO}.
+     * @param dir - directory
+     * @param maxSize - maximum size in bytes
+     */
+    public TurboDAO(final File dir, final long maxSize) {
         this.memTable = new MemTable(maxSize);
         this.maxSize = maxSize;
         this.dir = dir;
         this.sstables = new ArrayList<>();
-        File[] sst = dir.listFiles();
-        if (sst != null) {
+        final File[] sst = dir.listFiles();
+        if (sst == null) {
+            generation = 0;
+        } else {
             generation = sst.length;
-            for (File file : sst) {
-                try {
+            for (final File file : sst) {
+                if(file.getName().endsWith("sst.txt")) {
                     sstables.add(new SSTable(file));
-                } catch (Exception e) {
-                   // e.printStackTrace();
                 }
             }
-        } else {
-            generation = 0;
         }
     }
 

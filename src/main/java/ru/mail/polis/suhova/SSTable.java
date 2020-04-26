@@ -15,26 +15,26 @@ import java.util.List;
 public final class SSTable implements Table {
     private final File fileTable;
     private final int size;
-    private final int n;
+    private final int count;
     private final List<Integer> offsets = new ArrayList<>();
     private final List<Integer> keySizes = new ArrayList<>();
 
-    SSTable(final File file){
-        if (file.isDirectory() || !file.exists() || !file.getName().endsWith("sst.txt")) {
+    SSTable(final File file) {
+        if (file.isDirectory() || !file.exists()) {
             throw new IllegalArgumentException();
         }
         this.fileTable = file;
         try (FileChannel fileChannel = FileChannel.open(file.toPath(), StandardOpenOption.READ)) {
             this.size = (int) fileChannel.size();
-            ByteBuffer bb = ByteBuffer.allocate(size);
+            final ByteBuffer bb = ByteBuffer.allocate(size);
             for (int i = 0; i < size; i++) {
                 fileChannel.read(bb);
             }
             bb.rewind();
-            this.n = bb.getInt(size - Integer.BYTES);
-            int offset = size - Integer.BYTES * (n * 2 + 1);
+            this.count = bb.getInt(size - Integer.BYTES);
+            int offset = size - Integer.BYTES * (count * 2 + 1);
             bb.position(offset);
-            for (int i = 0; i < this.n; i++) {
+            for (int i = 0; i < this.count; i++) {
                 offsets.add(bb.getInt());
                 offset += Integer.BYTES;
                 bb.position(offset);
@@ -47,18 +47,20 @@ public final class SSTable implements Table {
         }
     }
 
-    /*
+    /**
+     * Writing a table to a file
+     * <p>
      * version (long) | tombstone (byte) | key | data
      * offset|keySizes
      * n
      */
-    public SSTable(final File dir, int generation, final Iterator<TableEntry> iter) throws IOException {
+    public SSTable(final File dir, final int generation, final Iterator<TableEntry> iter) throws IOException {
         this.fileTable = createFile(dir, generation);
         try (FileChannel file = new FileOutputStream(fileTable).getChannel()) {
             int offset = 0;
             while (iter.hasNext()) {
-                TableEntry entry = iter.next();
-                ByteBuffer key = entry.getKey();
+                final TableEntry entry = iter.next();
+                final ByteBuffer key = entry.getKey();
                 this.offsets.add(offset);
                 this.keySizes.add(key.remaining());
                 offset += key.remaining() + Long.BYTES + Byte.BYTES;
@@ -80,9 +82,9 @@ public final class SSTable implements Table {
                     file.write(data);
                 }
             }
-            this.n = offsets.size();
-            this.size = offset + Integer.BYTES * (n * 2 + 1);
-            for (int i = 0; i < this.n; i++) {
+            this.count = offsets.size();
+            this.size = offset + Integer.BYTES * (count * 2 + 1);
+            for (int i = 0; i < this.count; i++) {
                 file.write(ByteBuffer.allocate(Integer.BYTES * 2)
                         .putInt(offsets.get(i))
                         .putInt(keySizes.get(i))
@@ -96,7 +98,7 @@ public final class SSTable implements Table {
 
     private TableEntry getTableEntry(final int num) {
         try (FileChannel fileChannel = FileChannel.open(this.fileTable.toPath(), StandardOpenOption.READ)) {
-            ByteBuffer bb = ByteBuffer.allocate(size);
+            final ByteBuffer bb = ByteBuffer.allocate(size);
             for (int i = 0; i < size; i++) {
                 fileChannel.read(bb);
             }
@@ -108,11 +110,13 @@ public final class SSTable implements Table {
                     .position(offset)
                     .limit(offset + keySizes.get(num))
                     .slice();
-            if (!tombstone) {
+            if (tombstone) {
+                return new TableEntry(key, new Value(null, true, version));
+            } else {
                 offset += keySizes.get(num);
                 int lim;
-                if (num == this.n - 1) {
-                    lim = this.size - Integer.BYTES * (n * 2 + 1);
+                if (num == this.count - 1) {
+                    lim = this.size - Integer.BYTES * (count * 2 + 1);
                 } else {
                     lim = offsets.get(num + 1);
                 }
@@ -121,17 +125,15 @@ public final class SSTable implements Table {
                         .limit(lim)
                         .slice();
                 return new TableEntry(key, new Value(data, false, version));
-            } else {
-                return new TableEntry(key, new Value(null, true, version));
             }
         } catch (IOException e) {
             throw new IllegalArgumentException(e);
         }
     }
 
-    private int getKeyPosition(ByteBuffer key) {
+    private int getKeyPosition(final ByteBuffer key) {
         int low = 0;
-        int high = n - 1;
+        int high = count - 1;
         while (low <= high) {
             final int mid = low + (high - low) / 2;
             final int cmp = getTableEntry(mid).getKey().compareTo(key);
@@ -165,7 +167,7 @@ public final class SSTable implements Table {
 
             @Override
             public boolean hasNext() {
-                return position < n;
+                return position < count;
             }
 
             @Override

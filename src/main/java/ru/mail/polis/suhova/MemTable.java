@@ -12,10 +12,10 @@ import java.util.TreeMap;
 public class MemTable implements Table {
     private static final int ADDINTIONAL_SIZE = Long.BYTES + Byte.BYTES;
     private final SortedMap<ByteBuffer, Value> map = new TreeMap<>();
+    private final long maxSize;
     private long size;
-    private long maxSize;
 
-    public MemTable(long maxSize) {
+    public MemTable(final long maxSize) {
         this.maxSize = maxSize;
         this.size = 0;
     }

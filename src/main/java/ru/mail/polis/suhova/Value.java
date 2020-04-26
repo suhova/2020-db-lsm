@@ -7,18 +7,29 @@ public class Value {
     private final boolean tombstone;
     private final long version;
 
-    public Value(ByteBuffer data) {
+    /**
+     * Value from {@link TableEntry}
+     * @param data - content
+     */
+    public Value(final ByteBuffer data) {
         this.data = data;
         this.tombstone = false;
         this.version = System.nanoTime();
     }
-
-    public Value(ByteBuffer data, boolean tombstone, long version) {
+    /**
+     * Value from {@link TableEntry}
+     * @param data - content
+     * @param tombstone - is it removed
+     * @param version - timestamp
+     */
+    public Value(final ByteBuffer data, final boolean tombstone, final long version) {
         this.data = data;
         this.tombstone = tombstone;
         this.version = version;
     }
-
+    /**
+     * Value from {@link TableEntry}
+     */
     public Value() {
         this.data = null;
         this.tombstone = true;

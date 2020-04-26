@@ -31,8 +31,8 @@ public class TurboDAO implements DAO {
             for (File file : sst) {
                 try {
                     sstables.add(new SSTable(file));
-                } catch (IOException e) {
-                    throw new IllegalArgumentException();
+                } catch (Exception e) {
+                   // e.printStackTrace();
                 }
             }
         } else {

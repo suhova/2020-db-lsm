@@ -19,9 +19,9 @@ public final class SSTable implements Table {
     private final List<Integer> offsets = new ArrayList<>();
     private final List<Integer> keySizes = new ArrayList<>();
 
-    SSTable(final File file) throws IOException {
-        if (file.isDirectory() || !file.exists()) {
-            throw new IOException();
+    SSTable(final File file){
+        if (file.isDirectory() || !file.exists() || !file.getName().endsWith("sst.txt")) {
+            throw new IllegalArgumentException();
         }
         this.fileTable = file;
         try (FileChannel fileChannel = FileChannel.open(file.toPath(), StandardOpenOption.READ)) {
@@ -42,6 +42,8 @@ public final class SSTable implements Table {
                 offset += Integer.BYTES;
                 bb.position(offset);
             }
+        } catch (IOException e) {
+            throw new IllegalArgumentException(e);
         }
     }
 

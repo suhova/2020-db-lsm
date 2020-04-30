@@ -8,7 +8,7 @@ import java.util.Iterator;
 
 public interface Table {
     @NotNull
-    Iterator<TableEntry> iterator(@NotNull ByteBuffer from);
+    Iterator<Cell> iterator(@NotNull ByteBuffer from);
 
     boolean upsert(@NotNull ByteBuffer key, @NotNull ByteBuffer value);
 

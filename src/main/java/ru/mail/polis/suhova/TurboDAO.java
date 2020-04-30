@@ -8,51 +8,61 @@ import ru.mail.polis.Record;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.Objects;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class TurboDAO implements DAO {
+    private static final String SUFFIX = "sst.dat";
+    private static final String TEMP = "sst.tmp";
     private final long maxSize;
     private final File dir;
-    private final ArrayList<Table> sstables;
+    private final TreeMap<Integer, Table> ssTables;
     private MemTable memTable;
     private int generation;
 
     /**
      * Implementation {@link DAO}.
-     * @param dir - directory
+     *
+     * @param dir     - directory
      * @param maxSize - maximum size in bytes
      */
-    public TurboDAO(final File dir, final long maxSize) {
+    public TurboDAO(@NotNull final File dir, final long maxSize) {
         this.memTable = new MemTable(maxSize);
         this.maxSize = maxSize;
         this.dir = dir;
-        this.sstables = new ArrayList<>();
-        final File[] sst = dir.listFiles();
-        if (sst == null) {
-            generation = 0;
-        } else {
-            generation = sst.length;
-            for (final File file : sst) {
-                if(file.getName().endsWith("sst.txt")) {
-                    sstables.add(new SSTable(file));
-                }
-            }
-        }
+        this.ssTables = new TreeMap<>();
+        generation = -1;
+        File[] list = dir.listFiles((dir1, name) -> name.endsWith(SUFFIX));
+        assert list != null;
+        Arrays.stream(list).
+                filter(file -> !file.isDirectory()).
+                forEach(
+                        f -> {
+                            final String name = f.getName();
+                            final int gen = Integer.parseInt(name.substring(0, name.indexOf(SUFFIX)));
+                            try {
+                                ssTables.put(gen, new SSTable(f.toPath()));
+                            } catch (IOException e) {
+                                throw new UncheckedIOException(e);
+                            }
+                            if (gen > generation) generation = gen;
+                        }
+                );
+        generation++;
     }
 
     @NotNull
     @Override
     public Iterator<Record> iterator(@NotNull final ByteBuffer from) {
         return Iterators.transform(Iterators.filter(
-                Iters.collapseEquals(Iterators.mergeSorted(Stream.concat(sstables.stream(), Stream.of(memTable))
+                Iters.collapseEquals(Iterators.mergeSorted(Stream.concat(ssTables.descendingMap().values().stream(), Stream.of(memTable))
                         .map(s -> s.iterator(from))
-                        .collect(Collectors.toList()), Comparator.naturalOrder()), TableEntry::getKey),
+                        .collect(Collectors.toList()), Comparator.naturalOrder()), Cell::getKey),
                 e -> !Objects.requireNonNull(e).getValue().isTombstone()),
                 tableEntry -> Record.of(Objects.requireNonNull(tableEntry).getKey(), tableEntry.getValue().getData()));
     }
@@ -60,31 +70,32 @@ public class TurboDAO implements DAO {
     @Override
     public void upsert(@NotNull final ByteBuffer key, @NotNull final ByteBuffer value) throws IOException {
         if (!memTable.upsert(key, value)) {
-            sstables.add(new SSTable(dir, generation, memTable.iterator()));
-            generation++;
-            memTable = new MemTable(maxSize);
-            if (!memTable.upsert(key, value)) {
-                throw new IllegalArgumentException();
-            }
+            flush();
         }
     }
 
     @Override
     public void remove(@NotNull final ByteBuffer key) throws IOException {
         if (!memTable.remove(key)) {
-            sstables.add(new SSTable(dir, generation, memTable.iterator()));
-            generation++;
-            memTable = new MemTable(maxSize);
-            if (!memTable.remove(key)) {
-                throw new IllegalArgumentException();
-            }
+            flush();
         }
     }
 
     @Override
     public void close() throws IOException {
-        if (memTable.getEntryCount() != 0) {
-            new SSTable(dir, generation, memTable.iterator());
+        if (memTable.getEntryCount() > 0) {
+            flush();
         }
+        ssTables.values().forEach(sst -> ((SSTable) sst).close());
+    }
+
+    private void flush() throws IOException {
+        final File tmp = new File(dir, generation + TEMP);
+        SSTable.write(tmp, memTable.iterator(ByteBuffer.allocate(0)));
+        final File dat = new File(dir, generation + SUFFIX);
+        Files.move(tmp.toPath(), dat.toPath(), StandardCopyOption.ATOMIC_MOVE);
+        ssTables.put(generation, new SSTable(dat.toPath()));
+        generation++;
+        memTable = new MemTable(maxSize);
     }
 }

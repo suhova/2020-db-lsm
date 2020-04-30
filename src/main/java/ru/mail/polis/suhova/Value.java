@@ -1,39 +1,30 @@
 package ru.mail.polis.suhova;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.nio.ByteBuffer;
 
 public class Value {
     private final ByteBuffer data;
-    private final boolean tombstone;
     private final long version;
 
     /**
-     * Value from {@link TableEntry}
-     * @param data - content
-     */
-    public Value(final ByteBuffer data) {
-        this.data = data;
-        this.tombstone = false;
-        this.version = System.nanoTime();
-    }
-    /**
-     * Value from {@link TableEntry}
-     * @param data - content
-     * @param tombstone - is it removed
+     * Value from {@link Cell}
+     *
+     * @param data    - content
      * @param version - timestamp
      */
-    public Value(final ByteBuffer data, final boolean tombstone, final long version) {
+    public Value(@NotNull final ByteBuffer data, final long version) {
         this.data = data;
-        this.tombstone = tombstone;
         this.version = version;
     }
+
     /**
-     * Value from {@link TableEntry}
+     * new tombstone
      */
-    public Value() {
+    public Value(final long version) {
         this.data = null;
-        this.tombstone = true;
-        this.version = System.nanoTime();
+        this.version = version;
     }
 
     public ByteBuffer getData() {
@@ -41,7 +32,7 @@ public class Value {
     }
 
     public boolean isTombstone() {
-        return tombstone;
+        return data == null;
     }
 
     public long getVersion() {

@@ -14,14 +14,12 @@ import java.util.Iterator;
 import java.util.List;
 
 public final class SSTable implements Table {
-    //  private final FileChannel fileChannel;
     private final int count;
-    private final ArrayList<Integer> offsets = new ArrayList<>();
+    private final List<Integer> offsets = new ArrayList<>();
     private final ByteBuffer cells;
     private int size;
 
     SSTable(@NotNull final Path file) throws IOException {
-        // this.fileChannel = FileChannel.open(file, StandardOpenOption.READ);
         try (FileChannel fileChannel = FileChannel.open(file, StandardOpenOption.READ)) {
             this.size = (int) fileChannel.size();
             final ByteBuffer bb = ByteBuffer.allocate(size);
@@ -54,7 +52,6 @@ public final class SSTable implements Table {
      */
     public static void write(final File fileTable, final Iterator<Cell> iter) throws IOException {
         try (FileChannel file = new FileOutputStream(fileTable).getChannel()) {
-            //   this.fileChannel = file;
             final List<Integer> offsets = new ArrayList<>();
             int offset = 0;
             while (iter.hasNext()) {
@@ -92,7 +89,6 @@ public final class SSTable implements Table {
     }
 
     private Cell getCell(final int num) {
-      //  ByteBuffer cells = readAll();
         final int keySize = cells.getInt(offsets.get(num));
         int offset = offsets.get(num) + Integer.BYTES;
         final ByteBuffer key = cells.duplicate()
@@ -119,7 +115,6 @@ public final class SSTable implements Table {
     }
 
     private ByteBuffer getKey(final int num) {
-      //  ByteBuffer bb = readAll();
         final int keySize = cells.getInt(offsets.get(num));
         int offset = offsets.get(num) + Integer.BYTES;
         return cells.duplicate()
@@ -127,19 +122,6 @@ public final class SSTable implements Table {
                 .limit(offset + keySize)
                 .slice();
     }
-
-//    private ByteBuffer readAll() {
-//        final ByteBuffer bb = ByteBuffer.allocate(this.size);
-//        try {
-//            fileChannel.position(0);
-//            for (int i = 0; i < this.size; i++) {
-//                fileChannel.read(bb);
-//            }
-//        } catch (IOException e) {
-//            throw new UncheckedIOException(e);
-//        }
-//        return bb.rewind();
-//    }
 
     private int getKeyPosition(final ByteBuffer key) {
         int low = 0;
@@ -185,13 +167,5 @@ public final class SSTable implements Table {
     @Override
     public boolean remove(@NotNull final ByteBuffer key) {
         throw new UnsupportedOperationException();
-    }
-
-    public void close() {
-//        try {
-//            fileChannel.close();
-//        } catch (IOException e) {
-//            throw new UncheckedIOException(e);
-//        }
     }
 }

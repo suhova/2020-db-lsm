@@ -12,7 +12,11 @@ import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Objects;
+import java.util.TreeMap;
+import java.util.Iterator;
+import java.util.Comparator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -21,7 +25,7 @@ public class TurboDAO implements DAO {
     private static final String TEMP = "sst.tmp";
     private final long maxSize;
     private final File dir;
-    private final TreeMap<Integer, Table> ssTables;
+    private final TreeMap<Integer, Table> ssTables = new TreeMap<>();
     private MemTable memTable;
     private int generation;
 
@@ -35,13 +39,12 @@ public class TurboDAO implements DAO {
         this.memTable = new MemTable(maxSize);
         this.maxSize = maxSize;
         this.dir = dir;
-        this.ssTables = new TreeMap<>();
         generation = -1;
-        File[] list = dir.listFiles((dir1, name) -> name.endsWith(SUFFIX));
+        final File[] list = dir.listFiles((dir1, name) -> name.endsWith(SUFFIX));
         assert list != null;
-        Arrays.stream(list).
-                filter(file -> !file.isDirectory()).
-                forEach(
+        Arrays.stream(list)
+                .filter(file -> !file.isDirectory())
+                .forEach(
                         f -> {
                             final String name = f.getName();
                             final int gen = Integer.parseInt(name.substring(0, name.indexOf(SUFFIX)));
@@ -60,9 +63,11 @@ public class TurboDAO implements DAO {
     @Override
     public Iterator<Record> iterator(@NotNull final ByteBuffer from) {
         return Iterators.transform(Iterators.filter(
-                Iters.collapseEquals(Iterators.mergeSorted(Stream.concat(ssTables.descendingMap().values().stream(), Stream.of(memTable))
-                        .map(s -> s.iterator(from))
-                        .collect(Collectors.toList()), Comparator.naturalOrder()), Cell::getKey),
+                Iters.collapseEquals(Iterators.mergeSorted(
+                        Stream.concat(ssTables.descendingMap().values().stream(),
+                                Stream.of(memTable))
+                                .map(s -> s.iterator(from))
+                                .collect(Collectors.toList()), Comparator.naturalOrder()), Cell::getKey),
                 e -> !Objects.requireNonNull(e).getValue().isTombstone()),
                 tableEntry -> Record.of(Objects.requireNonNull(tableEntry).getKey(), tableEntry.getValue().getData()));
     }
@@ -86,7 +91,6 @@ public class TurboDAO implements DAO {
         if (memTable.getEntryCount() > 0) {
             flush();
         }
-        ssTables.values().forEach(sst -> ((SSTable) sst).close());
     }
 
     private void flush() throws IOException {

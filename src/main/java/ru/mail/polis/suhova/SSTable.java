@@ -6,6 +6,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.IntBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -15,7 +16,7 @@ import java.util.List;
 
 public final class SSTable implements Table {
     private final int count;
-    private final List<Integer> offsets = new ArrayList<>();
+    private final IntBuffer offsets;
     private final ByteBuffer cells;
     private int size;
 
@@ -34,12 +35,12 @@ public final class SSTable implements Table {
                     .position(0)
                     .limit(size - Integer.BYTES * (count + 1))
                     .slice();
+            offsets = bb.duplicate()
+                    .position(size - Integer.BYTES * (count + 1))
+                    .limit(size - Integer.BYTES)
+                    .slice()
+                    .asIntBuffer();
             this.size = offset;
-            for (int i = 0; i < this.count; i++) {
-                offsets.add(bb.getInt());
-                offset += Integer.BYTES;
-                bb.position(offset);
-            }
         }
     }
 

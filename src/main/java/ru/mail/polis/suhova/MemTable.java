@@ -33,7 +33,7 @@ public class MemTable implements Table {
 
     @Override
     public boolean upsert(@NotNull final ByteBuffer key, @NotNull final ByteBuffer value) {
-        map.put(key, new Value(value.duplicate(), System.currentTimeMillis()));
+        map.put(key.duplicate(), new Value(value.duplicate(), System.currentTimeMillis()));
         size += key.remaining() + value.remaining() + Long.BYTES;
         return size <= maxSize;
     }
@@ -48,6 +48,6 @@ public class MemTable implements Table {
             size += key.remaining() + Long.BYTES;
         }
         map.put(key, new Value(System.currentTimeMillis()));
-        return size < maxSize;
+        return size <= maxSize;
     }
 }

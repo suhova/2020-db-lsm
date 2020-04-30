@@ -44,8 +44,8 @@ public final class SSTable implements Table {
     }
 
     /**
-     * Writing a table to a file
-     * <p>
+     * Writing a table to a file.
+     *
      * keySize (integer)| key | version (long) | data
      * offsets
      * n
@@ -71,13 +71,13 @@ public final class SSTable implements Table {
                     file.write(ByteBuffer.allocate(Long.BYTES)
                             .putLong(cell.getValue().getVersion())
                             .rewind());
-                    ByteBuffer data = cell.getValue().getData();
+                    final ByteBuffer data = cell.getValue().getData();
                     offset += data.remaining();
                     file.write(data);
                 }
             }
             final int count = offsets.size();
-            for (Integer integer : offsets) {
+            for (final Integer integer : offsets) {
                 file.write(ByteBuffer.allocate(Integer.BYTES)
                         .putInt(integer)
                         .rewind());
@@ -116,7 +116,7 @@ public final class SSTable implements Table {
 
     private ByteBuffer getKey(final int num) {
         final int keySize = cells.getInt(offsets.get(num));
-        int offset = offsets.get(num) + Integer.BYTES;
+        final int offset = offsets.get(num) + Integer.BYTES;
         return cells.duplicate()
                 .position(offset)
                 .limit(offset + keySize)

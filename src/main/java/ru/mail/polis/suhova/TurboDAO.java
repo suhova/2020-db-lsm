@@ -13,10 +13,11 @@ import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
+import java.util.Comparator;
+import java.util.Iterator;
+import java.util.NavigableMap;
 import java.util.Objects;
 import java.util.TreeMap;
-import java.util.Iterator;
-import java.util.Comparator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -25,7 +26,7 @@ public class TurboDAO implements DAO {
     private static final String TEMP = "sst.tmp";
     private final long maxSize;
     private final File dir;
-    private final TreeMap<Integer, Table> ssTables = new TreeMap<>();
+    private final NavigableMap<Integer, Table> ssTables = new TreeMap<>();
     private MemTable memTable;
     private int generation;
 

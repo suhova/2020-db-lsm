@@ -9,7 +9,7 @@ public class Value {
     private final long version;
 
     /**
-     * Value from {@link Cell}
+     * Value from {@link Cell}.
      *
      * @param data    - content
      * @param version - timestamp
@@ -20,7 +20,7 @@ public class Value {
     }
 
     /**
-     * new tombstone
+     * new tombstone.
      */
     public Value(final long version) {
         this.data = null;

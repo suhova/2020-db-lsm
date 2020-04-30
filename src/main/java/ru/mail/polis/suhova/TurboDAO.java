@@ -12,14 +12,7 @@ import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.NavigableMap;
-import java.util.Objects;
-import java.util.TreeMap;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import java.util.*;
 
 public class TurboDAO implements DAO {
     private static final String SUFFIX = "sst.dat";
@@ -63,14 +56,13 @@ public class TurboDAO implements DAO {
     @NotNull
     @Override
     public Iterator<Record> iterator(@NotNull final ByteBuffer from) {
-        return Iterators.transform(Iterators.filter(
-                Iters.collapseEquals(Iterators.mergeSorted(
-                        Stream.concat(ssTables.descendingMap().values().stream(),
-                                Stream.of(memTable))
-                                .map(s -> s.iterator(from))
-                                .collect(Collectors.toList()), Comparator.naturalOrder()), Cell::getKey),
-                e -> !Objects.requireNonNull(e).getValue().isTombstone()),
-                tableEntry -> Record.of(Objects.requireNonNull(tableEntry).getKey(), tableEntry.getValue().getData()));
+        final List<Iterator<Cell> > iters = new ArrayList<>(ssTables.size() + 1);
+        iters.add(memTable.iterator(from));
+        ssTables.descendingMap().values().forEach(table -> iters.add(table.iterator(from)));
+        final Iterator<Cell> merged = Iterators.mergeSorted(iters, Comparator.naturalOrder());
+        final Iterator<Cell> fresh = Iters.collapseEquals(merged, Cell::getKey);
+        final Iterator<Cell> alive = Iterators.filter(fresh, cell -> !Objects.requireNonNull(cell).getValue().isTombstone());
+        return Iterators.transform(alive, cell -> Record.of(Objects.requireNonNull(cell).getKey(), cell.getValue().getData()));
     }
 
     @Override

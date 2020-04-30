@@ -8,15 +8,9 @@ public class Cell implements Comparable<Cell> {
     private final ByteBuffer key;
     private final Value value;
 
-    public Cell(final ByteBuffer key, final Value value) {
+    public Cell(@NotNull final ByteBuffer key,@NotNull final Value value) {
         this.key = key;
         this.value = value;
-    }
-
-    public static Cell of(
-            @NotNull final ByteBuffer key,
-            @NotNull final Value value) {
-        return new Cell(key, value);
     }
 
     public ByteBuffer getKey() {

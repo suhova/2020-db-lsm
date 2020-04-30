@@ -5,11 +5,12 @@ import org.jetbrains.annotations.NotNull;
 
 import java.nio.ByteBuffer;
 import java.util.Iterator;
+import java.util.NavigableMap;
 import java.util.Objects;
 import java.util.TreeMap;
 
 public class MemTable implements Table {
-    private final TreeMap<ByteBuffer, Value> map = new TreeMap<>();
+    private final NavigableMap<ByteBuffer, Value> map = new TreeMap<>();
     private final long maxSize;
     private long size;
 

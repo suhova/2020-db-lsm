@@ -5,7 +5,6 @@ import org.jetbrains.annotations.NotNull;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
@@ -15,30 +14,35 @@ import java.util.Iterator;
 import java.util.List;
 
 public final class SSTable implements Table {
-    private final FileChannel fileChannel;
-    private final ArrayList<Integer> offsets = new ArrayList<>();
+    //  private final FileChannel fileChannel;
     private final int count;
+    private final ArrayList<Integer> offsets = new ArrayList<>();
+    private final ByteBuffer cells;
     private int size;
 
     SSTable(@NotNull final Path file) throws IOException {
-        this.fileChannel = FileChannel.open(file, StandardOpenOption.READ);
-        this.size = (int) fileChannel.size();
-        final ByteBuffer bb = ByteBuffer.allocate(size);
-        for (int i = 0; i < size; i++) {
-            fileChannel.read(bb);
-        }
-        bb.rewind();
-        this.count = bb.getInt(size - Integer.BYTES);
-        int offset = size - Integer.BYTES * (count + 1);
-        bb.position(offset);
-        this.size = offset;
-        for (int i = 0; i < this.count; i++) {
-            offsets.add(bb.getInt());
-            offset += Integer.BYTES;
+        // this.fileChannel = FileChannel.open(file, StandardOpenOption.READ);
+        try (FileChannel fileChannel = FileChannel.open(file, StandardOpenOption.READ)) {
+            this.size = (int) fileChannel.size();
+            final ByteBuffer bb = ByteBuffer.allocate(size);
+            for (int i = 0; i < size; i++) {
+                fileChannel.read(bb);
+            }
+            bb.rewind();
+            this.count = bb.getInt(size - Integer.BYTES);
+            int offset = size - Integer.BYTES * (count + 1);
             bb.position(offset);
+            cells = bb.duplicate()
+                    .position(0)
+                    .limit(size - Integer.BYTES * (count + 1))
+                    .slice();
+            this.size = offset;
+            for (int i = 0; i < this.count; i++) {
+                offsets.add(bb.getInt());
+                offset += Integer.BYTES;
+                bb.position(offset);
+            }
         }
-
-        //   }
     }
 
     /**
@@ -88,14 +92,14 @@ public final class SSTable implements Table {
     }
 
     private Cell getCell(final int num) {
-        ByteBuffer bb = readAll();
-        final int keySize = bb.getInt(offsets.get(num));
+      //  ByteBuffer cells = readAll();
+        final int keySize = cells.getInt(offsets.get(num));
         int offset = offsets.get(num) + Integer.BYTES;
-        final ByteBuffer key = bb.duplicate()
+        final ByteBuffer key = cells.duplicate()
                 .position(offset)
                 .limit(offset + keySize)
                 .slice();
-        final long version = bb.getLong(offset + keySize);
+        final long version = cells.getLong(offset + keySize);
         if (version < 0) {
             return new Cell(key, new Value(-version));
         } else {
@@ -106,7 +110,7 @@ public final class SSTable implements Table {
             } else {
                 lim = offsets.get(num + 1);
             }
-            final ByteBuffer data = bb.duplicate()
+            final ByteBuffer data = cells.duplicate()
                     .position(offset)
                     .limit(lim)
                     .slice();
@@ -115,28 +119,27 @@ public final class SSTable implements Table {
     }
 
     private ByteBuffer getKey(final int num) {
-        ByteBuffer bb = readAll();
-        final int keySize = bb.getInt(offsets.get(num));
+      //  ByteBuffer bb = readAll();
+        final int keySize = cells.getInt(offsets.get(num));
         int offset = offsets.get(num) + Integer.BYTES;
-        return bb.duplicate()
+        return cells.duplicate()
                 .position(offset)
                 .limit(offset + keySize)
                 .slice();
     }
 
-    private ByteBuffer readAll() {
-        ;
-        final ByteBuffer bb = ByteBuffer.allocate(this.size);
-        try {
-            fileChannel.position(0);
-            for (int i = 0; i < this.size; i++) {
-                fileChannel.read(bb);
-            }
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-        return bb.rewind();
-    }
+//    private ByteBuffer readAll() {
+//        final ByteBuffer bb = ByteBuffer.allocate(this.size);
+//        try {
+//            fileChannel.position(0);
+//            for (int i = 0; i < this.size; i++) {
+//                fileChannel.read(bb);
+//            }
+//        } catch (IOException e) {
+//            throw new UncheckedIOException(e);
+//        }
+//        return bb.rewind();
+//    }
 
     private int getKeyPosition(final ByteBuffer key) {
         int low = 0;
@@ -185,10 +188,10 @@ public final class SSTable implements Table {
     }
 
     public void close() {
-        try {
-            fileChannel.close();
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
+//        try {
+//            fileChannel.close();
+//        } catch (IOException e) {
+//            throw new UncheckedIOException(e);
+//        }
     }
 }

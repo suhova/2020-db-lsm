@@ -29,7 +29,7 @@ public final class SSTable implements Table {
             }
             bb.rewind();
             this.count = bb.getInt(size - Integer.BYTES);
-            int offset = size - Integer.BYTES * (count + 1);
+            final int offset = size - Integer.BYTES * (count + 1);
             bb.position(offset);
             cells = bb.duplicate()
                     .position(0)

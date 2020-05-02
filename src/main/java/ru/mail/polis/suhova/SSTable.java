@@ -15,19 +15,19 @@ import java.util.Iterator;
 import java.util.List;
 
 public final class SSTable implements Table {
-    private final int count;
     private final IntBuffer offsets;
+    private final int count;
+    private final int size;
     RandomAccessFile randomAccessFile;
-    private int size;
 
     SSTable(@NotNull final File file) throws IOException {
         randomAccessFile = new RandomAccessFile(file, "r");
-        this.size = (int) randomAccessFile.getChannel().size();
+        final int size = (int) randomAccessFile.getChannel().size();
         randomAccessFile.seek(size - Integer.BYTES);
         this.count = randomAccessFile.readInt();
         this.size = size - Integer.BYTES * (count + 1);
         randomAccessFile.seek(this.size);
-        byte[] bytes = new byte[Integer.BYTES * count];
+        final byte[] bytes = new byte[Integer.BYTES * count];
         randomAccessFile.read(bytes);
         offsets = ByteBuffer.wrap(bytes).asIntBuffer();
     }
@@ -78,8 +78,7 @@ public final class SSTable implements Table {
 
     private Cell getCell(final int num) {
         try {
-
-            ByteBuffer key = getKey(num);
+            final ByteBuffer key = getKey(num);
             randomAccessFile.seek(offsets.get(num));
             final int keySize = randomAccessFile.readInt();
             int offset = offsets.get(num) + Integer.BYTES;
@@ -95,7 +94,7 @@ public final class SSTable implements Table {
                 } else {
                     lim = offsets.get(num + 1) - offset;
                 }
-                byte[] dataBytes = new byte[lim];
+                final byte[] dataBytes = new byte[lim];
                 randomAccessFile.seek(offset);
                 randomAccessFile.read(dataBytes);
                 return new Cell(key, new Value(ByteBuffer.wrap(dataBytes), version));
@@ -108,8 +107,8 @@ public final class SSTable implements Table {
     private ByteBuffer getKey(final int num) throws IOException {
         randomAccessFile.seek(offsets.get(num));
         final int keySize = randomAccessFile.readInt();
-        int offset = offsets.get(num) + Integer.BYTES;
-        byte[] keyBytes = new byte[keySize];
+        final int offset = offsets.get(num) + Integer.BYTES;
+        final byte[] keyBytes = new byte[keySize];
         randomAccessFile.seek(offset);
         randomAccessFile.read(keyBytes);
         return ByteBuffer.wrap(keyBytes);

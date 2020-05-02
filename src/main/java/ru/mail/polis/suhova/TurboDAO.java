@@ -25,7 +25,7 @@ import static java.util.Objects.requireNonNull;
 public class TurboDAO implements DAO {
     private static final String SUFFIX = "sst.dat";
     private static final String TEMP = "sst.tmp";
-    private final long maxSize;
+    private final long flushThreshold;
     private final File dir;
     private final NavigableMap<Integer, Table> ssTables = new TreeMap<>();
     private MemTable memTable;
@@ -34,12 +34,12 @@ public class TurboDAO implements DAO {
     /**
      * Implementation {@link DAO}.
      *
-     * @param dir     - directory
-     * @param maxSize - maximum size in bytes
+     * @param dir            - directory
+     * @param flushThreshold - when the table reaches this size, it flushes
      */
-    public TurboDAO(@NotNull final File dir, final long maxSize) {
-        this.memTable = new MemTable(maxSize);
-        this.maxSize = maxSize;
+    public TurboDAO(@NotNull final File dir, final long flushThreshold) {
+        this.memTable = new MemTable();
+        this.flushThreshold = flushThreshold;
         this.dir = dir;
         generation = -1;
         final File[] list = dir.listFiles((dir1, name) -> name.endsWith(SUFFIX));
@@ -75,16 +75,18 @@ public class TurboDAO implements DAO {
 
     @Override
     public void upsert(@NotNull final ByteBuffer key, @NotNull final ByteBuffer value) throws IOException {
-        if (!memTable.upsert(key, value)) {
+        if (memTable.sizeInBytes() >= flushThreshold) {
             flush();
         }
+        memTable.upsert(key, value);
     }
 
     @Override
     public void remove(@NotNull final ByteBuffer key) throws IOException {
-        if (!memTable.remove(key)) {
+        if (memTable.sizeInBytes() >= flushThreshold) {
             flush();
         }
+        memTable.remove(key);
     }
 
     @Override
@@ -101,6 +103,6 @@ public class TurboDAO implements DAO {
         Files.move(tmp.toPath(), dat.toPath(), StandardCopyOption.ATOMIC_MOVE);
         ssTables.put(generation, new SSTable(dat.toPath()));
         generation++;
-        memTable = new MemTable(maxSize);
+        memTable = new MemTable();
     }
 }

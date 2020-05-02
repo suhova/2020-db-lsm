@@ -11,11 +11,9 @@ import java.util.TreeMap;
 
 public class MemTable implements Table {
     private final NavigableMap<ByteBuffer, Value> map = new TreeMap<>();
-    private final long maxSize;
     private long size;
 
-    public MemTable(final long maxSize) {
-        this.maxSize = maxSize;
+    public MemTable() {
         this.size = 0;
     }
 
@@ -32,14 +30,13 @@ public class MemTable implements Table {
     }
 
     @Override
-    public boolean upsert(@NotNull final ByteBuffer key, @NotNull final ByteBuffer value) {
+    public void  upsert(@NotNull final ByteBuffer key, @NotNull final ByteBuffer value) {
         map.put(key.duplicate(), new Value(value.duplicate(), System.currentTimeMillis()));
         size += key.remaining() + value.remaining() + Long.BYTES;
-        return size <= maxSize;
     }
 
     @Override
-    public boolean remove(@NotNull final ByteBuffer key) {
+    public void remove(@NotNull final ByteBuffer key) {
         if (map.containsKey(key)) {
             if (!map.get(key).isTombstone()) {
                 size = size - map.get(key).getData().remaining();
@@ -48,6 +45,10 @@ public class MemTable implements Table {
             size += key.remaining() + Long.BYTES;
         }
         map.put(key, new Value(System.currentTimeMillis()));
-        return size <= maxSize;
+    }
+
+    @Override
+    public long sizeInBytes() {
+        return size;
     }
 }

@@ -10,7 +10,9 @@ public interface Table {
     @NotNull
     Iterator<Cell> iterator(@NotNull ByteBuffer from);
 
-    boolean upsert(@NotNull ByteBuffer key, @NotNull ByteBuffer value);
+    void upsert(@NotNull ByteBuffer key, @NotNull ByteBuffer value);
 
-    boolean remove(@NotNull ByteBuffer key) throws IOException;
+    void remove(@NotNull ByteBuffer key) throws IOException;
+
+    long sizeInBytes();
 }

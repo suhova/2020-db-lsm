@@ -160,12 +160,17 @@ public final class SSTable implements Table {
     }
 
     @Override
-    public boolean upsert(@NotNull final ByteBuffer key, @NotNull final ByteBuffer value) {
+    public void upsert(@NotNull final ByteBuffer key, @NotNull final ByteBuffer value) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public boolean remove(@NotNull final ByteBuffer key) {
+    public void remove(@NotNull final ByteBuffer key) {
         throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public long sizeInBytes() {
+        return size;
     }
 }

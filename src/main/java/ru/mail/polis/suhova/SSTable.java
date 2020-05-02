@@ -22,10 +22,10 @@ public final class SSTable implements Table {
 
     SSTable(@NotNull final File file) throws IOException {
         randomAccessFile = new RandomAccessFile(file, "r");
-        final int size = (int) randomAccessFile.getChannel().size();
-        randomAccessFile.seek(size - Integer.BYTES);
+        final int fileSize = (int) randomAccessFile.getChannel().size();
+        randomAccessFile.seek(fileSize - Integer.BYTES);
         this.count = randomAccessFile.readInt();
-        this.size = size - Integer.BYTES * (count + 1);
+        this.size = fileSize - Integer.BYTES * (count + 1);
         randomAccessFile.seek(this.size);
         final byte[] bytes = new byte[Integer.BYTES * count];
         randomAccessFile.read(bytes);

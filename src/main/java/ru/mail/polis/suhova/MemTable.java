@@ -51,4 +51,9 @@ public class MemTable implements Table {
     public long sizeInBytes() {
         return size;
     }
+
+    @Override
+    public void close() {
+        throw new UnsupportedOperationException();
+    }
 }

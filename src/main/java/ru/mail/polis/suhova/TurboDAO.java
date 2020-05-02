@@ -51,7 +51,7 @@ public class TurboDAO implements DAO {
                             final String name = f.getName();
                             final int gen = Integer.parseInt(name.substring(0, name.indexOf(SUFFIX)));
                             try {
-                                ssTables.put(gen, new SSTable(f.toPath()));
+                                ssTables.put(gen, new SSTable(f));
                             } catch (IOException e) {
                                 throw new UncheckedIOException(e);
                             }
@@ -94,6 +94,7 @@ public class TurboDAO implements DAO {
         if (memTable.getEntryCount() > 0) {
             flush();
         }
+        ssTables.values().forEach(Table::close);
     }
 
     private void flush() throws IOException {
@@ -101,7 +102,7 @@ public class TurboDAO implements DAO {
         SSTable.write(tmp, memTable.iterator(ByteBuffer.allocate(0)));
         final File dat = new File(dir, generation + SUFFIX);
         Files.move(tmp.toPath(), dat.toPath(), StandardCopyOption.ATOMIC_MOVE);
-        ssTables.put(generation, new SSTable(dat.toPath()));
+        ssTables.put(generation, new SSTable(dat));
         generation++;
         memTable = new MemTable();
     }

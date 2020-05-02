@@ -18,7 +18,7 @@ public final class SSTable implements Table {
     private final IntBuffer offsets;
     private final int count;
     private final int size;
-    private RandomAccessFile randomAccessFile;
+    private final RandomAccessFile randomAccessFile;
 
     SSTable(@NotNull final File file) throws IOException {
         randomAccessFile = new RandomAccessFile(file, "r");

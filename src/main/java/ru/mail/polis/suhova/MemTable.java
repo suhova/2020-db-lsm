@@ -54,5 +54,6 @@ public class MemTable implements Table {
 
     @Override
     public void close() {
+        //nothing to close:)
     }
 }

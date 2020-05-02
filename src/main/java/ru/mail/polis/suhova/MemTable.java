@@ -54,6 +54,5 @@ public class MemTable implements Table {
 
     @Override
     public void close() {
-        throw new UnsupportedOperationException();
     }
 }

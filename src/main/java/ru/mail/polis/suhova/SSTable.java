@@ -18,7 +18,7 @@ public final class SSTable implements Table {
     private final IntBuffer offsets;
     private final int count;
     private final int size;
-    RandomAccessFile randomAccessFile;
+    private RandomAccessFile randomAccessFile;
 
     SSTable(@NotNull final File file) throws IOException {
         randomAccessFile = new RandomAccessFile(file, "r");
@@ -78,16 +78,15 @@ public final class SSTable implements Table {
 
     private Cell getCell(final int num) {
         try {
-            final ByteBuffer key = getKey(num);
-            randomAccessFile.seek(offsets.get(num));
             final int keySize = randomAccessFile.readInt();
-            int offset = offsets.get(num) + Integer.BYTES;
-            randomAccessFile.seek(offset + keySize);
+            final byte[] keyBytes = new byte[keySize];
+            randomAccessFile.read(keyBytes);
+            final ByteBuffer key = ByteBuffer.wrap(keyBytes);
             final long version = randomAccessFile.readLong();
             if (version < 0) {
                 return new Cell(key, new Value(-version));
             } else {
-                offset += keySize + Long.BYTES;
+                final int offset = offsets.get(num) + Integer.BYTES + keySize + Long.BYTES;
                 int lim;
                 if (num == this.count - 1) {
                     lim = this.size - offset;
@@ -95,7 +94,6 @@ public final class SSTable implements Table {
                     lim = offsets.get(num + 1) - offset;
                 }
                 final byte[] dataBytes = new byte[lim];
-                randomAccessFile.seek(offset);
                 randomAccessFile.read(dataBytes);
                 return new Cell(key, new Value(ByteBuffer.wrap(dataBytes), version));
             }
@@ -130,8 +128,20 @@ public final class SSTable implements Table {
             } else if (cmp > 0) {
                 high = mid - 1;
             } else {
+                try {
+                    randomAccessFile.seek(offsets.get(mid));
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
                 return mid;
             }
+        }
+        try {
+            if (low < count) {
+                randomAccessFile.seek(offsets.get(low));
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
         }
         return low;
     }

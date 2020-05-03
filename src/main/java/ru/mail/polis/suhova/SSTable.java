@@ -5,31 +5,26 @@ import org.jetbrains.annotations.NotNull;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.RandomAccessFile;
 import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
-import java.nio.IntBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
 public final class SSTable implements Table {
-    private final IntBuffer offsets;
     private final int count;
     private final int size;
-    private final RandomAccessFile randomAccessFile;
+    private final FileChannel fileChannel;
 
     SSTable(@NotNull final File file) throws IOException {
-        randomAccessFile = new RandomAccessFile(file, "r");
-        final int fileSize = (int) randomAccessFile.getChannel().size();
-        randomAccessFile.seek(fileSize - Integer.BYTES);
-        this.count = randomAccessFile.readInt();
-        this.size = fileSize - Integer.BYTES * (count + 1);
-        randomAccessFile.seek(this.size);
-        final byte[] bytes = new byte[Integer.BYTES * count];
-        randomAccessFile.read(bytes);
-        offsets = ByteBuffer.wrap(bytes).asIntBuffer();
+        fileChannel = FileChannel.open(file.toPath(), StandardOpenOption.READ);
+        final int fileSize = (int) fileChannel.size() - Integer.BYTES;
+        final ByteBuffer cellCount = ByteBuffer.allocate(Integer.BYTES);
+        fileChannel.read(cellCount, fileSize);
+        this.count = cellCount.rewind().getInt();
+        this.size = fileSize - count * Integer.BYTES;
     }
 
     /**
@@ -78,24 +73,30 @@ public final class SSTable implements Table {
 
     private Cell getCell(final int num) {
         try {
-            final int keySize = randomAccessFile.readInt();
-            final byte[] keyBytes = new byte[keySize];
-            randomAccessFile.read(keyBytes);
-            final ByteBuffer key = ByteBuffer.wrap(keyBytes);
-            final long version = randomAccessFile.readLong();
+            int offset = getOffset(num);
+            final ByteBuffer keySizeBB = ByteBuffer.allocate(Integer.BYTES);
+            fileChannel.read(keySizeBB, offset);
+            offset += Integer.BYTES;
+            final int keySize = keySizeBB.rewind().getInt();
+            final ByteBuffer key = ByteBuffer.allocate(keySize);
+            fileChannel.read(key, offset);
+            offset += keySize;
+            final ByteBuffer versionBB = ByteBuffer.allocate(Long.BYTES);
+            fileChannel.read(versionBB, offset);
+            final long version = versionBB.rewind().getLong();
             if (version < 0) {
-                return new Cell(key, new Value(-version));
+                return new Cell(key.rewind(), new Value(-version));
             } else {
-                final int offset = offsets.get(num) + Integer.BYTES + keySize + Long.BYTES;
-                int lim;
+                offset += Long.BYTES;
+                final int dataSize;
                 if (num == this.count - 1) {
-                    lim = this.size - offset;
+                    dataSize = this.size - offset;
                 } else {
-                    lim = offsets.get(num + 1) - offset;
+                    dataSize = getOffset(num + 1) - offset;
                 }
-                final byte[] dataBytes = new byte[lim];
-                randomAccessFile.read(dataBytes);
-                return new Cell(key, new Value(ByteBuffer.wrap(dataBytes), version));
+                final ByteBuffer data = ByteBuffer.allocate(dataSize);
+                fileChannel.read(data, offset);
+                return new Cell(key.rewind(), new Value(data.rewind(), version));
             }
         } catch (IOException e) {
             throw new UncheckedIOException(e);
@@ -103,13 +104,19 @@ public final class SSTable implements Table {
     }
 
     private ByteBuffer getKey(final int num) throws IOException {
-        randomAccessFile.seek(offsets.get(num));
-        final int keySize = randomAccessFile.readInt();
-        final int offset = offsets.get(num) + Integer.BYTES;
-        final byte[] keyBytes = new byte[keySize];
-        randomAccessFile.seek(offset);
-        randomAccessFile.read(keyBytes);
-        return ByteBuffer.wrap(keyBytes);
+        final ByteBuffer keySizeBB = ByteBuffer.allocate(Integer.BYTES);
+        final int offset = getOffset(num);
+        fileChannel.read(keySizeBB, offset);
+        final int keySize = keySizeBB.rewind().getInt();
+        final ByteBuffer key = ByteBuffer.allocate(keySize);
+        fileChannel.read(key, offset + Integer.BYTES);
+        return key.rewind();
+    }
+
+    private int getOffset(final int num) throws IOException {
+        final ByteBuffer offsetBB = ByteBuffer.allocate(Integer.BYTES);
+        fileChannel.read(offsetBB, size + num * Integer.BYTES);
+        return offsetBB.rewind().getInt();
     }
 
     private int getKeyPosition(final ByteBuffer key) {
@@ -128,20 +135,8 @@ public final class SSTable implements Table {
             } else if (cmp > 0) {
                 high = mid - 1;
             } else {
-                try {
-                    randomAccessFile.seek(offsets.get(mid));
-                } catch (IOException e) {
-                    throw new UncheckedIOException(e);
-                }
                 return mid;
             }
-        }
-        try {
-            if (low < count) {
-                randomAccessFile.seek(offsets.get(low));
-            }
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
         }
         return low;
     }
@@ -177,13 +172,13 @@ public final class SSTable implements Table {
 
     @Override
     public long sizeInBytes() {
-        return size;
+        return (long) size + (count + 1) * Integer.BYTES;
     }
 
     @Override
     public void close() {
         try {
-            randomAccessFile.close();
+            fileChannel.close();
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

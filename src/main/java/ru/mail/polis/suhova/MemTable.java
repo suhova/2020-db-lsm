@@ -13,10 +13,6 @@ public class MemTable implements Table {
     private final NavigableMap<ByteBuffer, Value> map = new TreeMap<>();
     private long size;
 
-    public MemTable() {
-        this.size = 0;
-    }
-
     public int getEntryCount() {
         return map.size();
     }
@@ -31,20 +27,24 @@ public class MemTable implements Table {
 
     @Override
     public void upsert(@NotNull final ByteBuffer key, @NotNull final ByteBuffer value) {
-        map.put(key.duplicate(), new Value(value.duplicate(), System.currentTimeMillis()));
-        size += key.remaining() + value.remaining() + Long.BYTES;
+        Value prev = map.put(key.duplicate(), new Value(value.duplicate(), System.currentTimeMillis()));
+        if (prev == null) {
+            size += key.remaining() + value.remaining() + Long.BYTES;
+        } else {
+            size += value.remaining() - prev.getData().remaining();
+        }
     }
 
     @Override
     public void remove(@NotNull final ByteBuffer key) {
-        if (map.containsKey(key)) {
-            if (!map.get(key).isTombstone()) {
-                size = size - map.get(key).getData().remaining();
-            }
-        } else {
+        Value prev =  map.put(key, new Value(System.currentTimeMillis()));
+        if (prev == null) {
             size += key.remaining() + Long.BYTES;
+        } else {
+            if (!prev.isTombstone()) {
+                size = size - prev.getData().remaining();
+            }
         }
-        map.put(key, new Value(System.currentTimeMillis()));
     }
 
     @Override

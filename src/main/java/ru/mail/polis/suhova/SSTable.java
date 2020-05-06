@@ -28,7 +28,7 @@ public final class SSTable implements Table {
     }
 
     /**
-     * Writing a table to a file.
+     * Writes a table to a file.
      * keySize (integer)| key | version (long) | data
      * offsets
      * n

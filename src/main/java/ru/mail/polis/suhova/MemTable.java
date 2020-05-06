@@ -27,7 +27,7 @@ public class MemTable implements Table {
 
     @Override
     public void upsert(@NotNull final ByteBuffer key, @NotNull final ByteBuffer value) {
-        Value prev = map.put(key.duplicate(), new Value(value.duplicate(), System.currentTimeMillis()));
+        final Value prev = map.put(key.duplicate(), new Value(value.duplicate(), System.currentTimeMillis()));
         if (prev == null) {
             size += key.remaining() + value.remaining() + Long.BYTES;
         } else {
@@ -37,7 +37,7 @@ public class MemTable implements Table {
 
     @Override
     public void remove(@NotNull final ByteBuffer key) {
-        Value prev =  map.put(key, new Value(System.currentTimeMillis()));
+        final Value prev = map.put(key, new Value(System.currentTimeMillis()));
         if (prev == null) {
             size += key.remaining() + Long.BYTES;
         } else {

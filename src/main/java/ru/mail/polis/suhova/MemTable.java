@@ -37,7 +37,7 @@ public class MemTable implements Table {
 
     @Override
     public void remove(@NotNull final ByteBuffer key) {
-        final Value prev = map.put(key, new Value(System.currentTimeMillis()));
+        final Value prev = map.put(key, Value.tombstone(System.currentTimeMillis()));
         if (prev == null) {
             size += key.remaining() + Long.BYTES;
         } else {

@@ -85,7 +85,7 @@ public final class SSTable implements Table {
             fileChannel.read(versionBB, offset);
             final long version = versionBB.rewind().getLong();
             if (version < 0) {
-                return new Cell(key.rewind(), new Value(-version));
+                return new Cell(key.rewind(), Value.tombstone(-version));
             } else {
                 offset += Long.BYTES;
                 final int dataSize;

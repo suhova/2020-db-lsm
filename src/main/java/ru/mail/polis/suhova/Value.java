@@ -1,7 +1,5 @@
 package ru.mail.polis.suhova;
 
-import org.jetbrains.annotations.NotNull;
-
 import java.nio.ByteBuffer;
 
 public class Value {
@@ -14,17 +12,13 @@ public class Value {
      * @param data    - content
      * @param version - timestamp
      */
-    public Value(@NotNull final ByteBuffer data, final long version) {
+    public Value(final ByteBuffer data, final long version) {
         this.data = data;
         this.version = version;
     }
 
-    /**
-     * new tombstone.
-     */
-    public Value(final long version) {
-        this.data = null;
-        this.version = version;
+    public static Value tombstone(final long version) {
+        return new Value(null, version);
     }
 
     public ByteBuffer getData() {

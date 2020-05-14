@@ -27,7 +27,7 @@ public class TurboDAO implements DAO {
     private static final String TEMP = "sst.tmp";
     private final long flushThreshold;
     private final File dir;
-    private final NavigableMap<Integer, Table> ssTables = new TreeMap<>();
+    private NavigableMap<Integer, Table> ssTables = new TreeMap<>();
     private MemTable memTable;
     private int generation;
 
@@ -64,13 +64,15 @@ public class TurboDAO implements DAO {
     @NotNull
     @Override
     public Iterator<Record> iterator(@NotNull final ByteBuffer from) {
+        final Iterator<Cell> alive = Iterators.filter(cellIterator(from), cell -> !requireNonNull(cell).getValue().isTombstone());
+        return Iterators.transform(alive, cell -> Record.of(requireNonNull(cell).getKey(), cell.getValue().getData()));
+    }
+    private Iterator<Cell> cellIterator(@NotNull final ByteBuffer from) {
         final List<Iterator<Cell>> iters = new ArrayList<>(ssTables.size() + 1);
         iters.add(memTable.iterator(from));
         ssTables.descendingMap().values().forEach(table -> iters.add(table.iterator(from)));
         final Iterator<Cell> merged = Iterators.mergeSorted(iters, Comparator.naturalOrder());
-        final Iterator<Cell> fresh = Iters.collapseEquals(merged, Cell::getKey);
-        final Iterator<Cell> alive = Iterators.filter(fresh, cell -> !requireNonNull(cell).getValue().isTombstone());
-        return Iterators.transform(alive, cell -> Record.of(requireNonNull(cell).getKey(), cell.getValue().getData()));
+        return Iters.collapseEquals(merged, Cell::getKey);
     }
 
     @Override
@@ -102,6 +104,23 @@ public class TurboDAO implements DAO {
         SSTable.write(tmp, memTable.iterator(ByteBuffer.allocate(0)));
         final File dat = new File(dir, generation + SUFFIX);
         Files.move(tmp.toPath(), dat.toPath(), StandardCopyOption.ATOMIC_MOVE);
+        ssTables.put(generation, new SSTable(dat));
+        generation++;
+        memTable = new MemTable();
+    }
+
+    @Override
+    public void compact() throws IOException {
+        Iterator<Cell> iterator = cellIterator(ByteBuffer.allocate(0));
+        for (int i = 0; i < generation; i++) {
+            new File(dir, i + SUFFIX).delete();
+        }
+        generation = 0;
+        final File tmp = new File(dir, generation + TEMP);
+        SSTable.write(tmp, iterator);
+        final File dat = new File(dir, generation + SUFFIX);
+        Files.move(tmp.toPath(), dat.toPath(), StandardCopyOption.ATOMIC_MOVE);
+        ssTables = new TreeMap<>();
         ssTables.put(generation, new SSTable(dat));
         generation++;
         memTable = new MemTable();

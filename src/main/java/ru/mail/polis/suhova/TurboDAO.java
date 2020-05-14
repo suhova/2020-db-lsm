@@ -64,9 +64,11 @@ public class TurboDAO implements DAO {
     @NotNull
     @Override
     public Iterator<Record> iterator(@NotNull final ByteBuffer from) {
-        final Iterator<Cell> alive = Iterators.filter(cellIterator(from), cell -> !requireNonNull(cell).getValue().isTombstone());
+        final Iterator<Cell> alive = Iterators.filter(cellIterator(from),
+                cell -> !requireNonNull(cell).getValue().isTombstone());
         return Iterators.transform(alive, cell -> Record.of(requireNonNull(cell).getKey(), cell.getValue().getData()));
     }
+
     private Iterator<Cell> cellIterator(@NotNull final ByteBuffer from) {
         final List<Iterator<Cell>> iters = new ArrayList<>(ssTables.size() + 1);
         iters.add(memTable.iterator(from));
@@ -111,9 +113,9 @@ public class TurboDAO implements DAO {
 
     @Override
     public void compact() throws IOException {
-        Iterator<Cell> iterator = cellIterator(ByteBuffer.allocate(0));
+        final Iterator<Cell> iterator = cellIterator(ByteBuffer.allocate(0));
         for (int i = 0; i < generation; i++) {
-            new File(dir, i + SUFFIX).delete();
+            Files.delete(new File(dir, i + SUFFIX).toPath());
         }
         generation = 0;
         final File tmp = new File(dir, generation + TEMP);

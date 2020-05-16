@@ -114,17 +114,17 @@ public class TurboDAO implements DAO {
     @Override
     public void compact() throws IOException {
         final Iterator<Cell> iterator = cellIterator(ByteBuffer.allocate(0));
+        final File tmp = new File(dir, generation + TEMP);
+        SSTable.write(tmp, iterator);
         for (int i = 0; i < generation; i++) {
             Files.delete(new File(dir, i + SUFFIX).toPath());
         }
         generation = 0;
-        final File tmp = new File(dir, generation + TEMP);
-        SSTable.write(tmp, iterator);
-        final File dat = new File(dir, generation + SUFFIX);
-        Files.move(tmp.toPath(), dat.toPath(), StandardCopyOption.ATOMIC_MOVE);
+        final File file = new File(dir, generation + SUFFIX);
+        Files.move(tmp.toPath(), file.toPath(), StandardCopyOption.ATOMIC_MOVE);
         ssTables = new TreeMap<>();
-        ssTables.put(generation, new SSTable(dat));
-        generation++;
+        ssTables.put(generation, new SSTable(file));
         memTable = new MemTable();
+        generation++;
     }
 }
